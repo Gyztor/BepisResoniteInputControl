@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using Elements.Core;
 using FrooxEngine;
@@ -122,6 +121,14 @@ public static class Patches
 		});
 	}
 
+	static void InitVariable(Slot root, string VariableName, SyncFieldEvent<bool> OnChange)
+	{
+		var component = root.AttachComponent<DynamicValueVariable<bool>>();
+		component.VariableName.Value = VariableName;
+		component.Value.Value = true;
+		component.Value.OnValueChange += OnChange;
+	}
+
 	[HarmonyPostfix]
 	[HarmonyPatch(typeof(UserRoot), "OnStart")]
 	public static void OnUserRootInitialize(UserRoot __instance)
@@ -132,37 +139,14 @@ public static class Patches
 		if (world.IsUserspace()) return;
 		Slot userRoot = __instance.Slot;
 
-		var leftMoveComp = userRoot.AttachComponent<DynamicValueVariable<bool>>();
-		leftMoveComp.VariableName.Value = LeftMoveVariable;
-		leftMoveComp.Value.Value = true;
-		leftMoveComp.Value.OnValueChange += LeftMoveChangedEvent;
+		InitVariable(userRoot, LeftMoveVariable, LeftMoveChangedEvent);
+		InitVariable(userRoot, RightMoveVariable, LeftMoveChangedEvent);
 
-		var rightMoveComp = userRoot.AttachComponent<DynamicValueVariable<bool>>();
-		rightMoveComp.VariableName.Value = RightMoveVariable;
-		rightMoveComp.Value.Value = true;
-		rightMoveComp.Value.OnValueChange += RightMoveChangedEvent;
+		InitVariable(userRoot, LeftTurnVariable, LeftTurnChangedEvent);
+		InitVariable(userRoot, RightTurnVariable, RightTurnChangedEvent);
 
-
-		var leftTurnComp = userRoot.AttachComponent<DynamicValueVariable<bool>>();
-		leftTurnComp.VariableName.Value = LeftTurnVariable;
-		leftTurnComp.Value.Value = true;
-		leftTurnComp.Value.OnValueChange += LeftTurnChangedEvent;
-
-		var rightTurnComp = userRoot.AttachComponent<DynamicValueVariable<bool>>();
-		rightTurnComp.VariableName.Value = RightTurnVariable;
-		rightTurnComp.Value.Value = true;
-		rightTurnComp.Value.OnValueChange += RightTurnChangedEvent;
-
-
-		var leftJumpComp = userRoot.AttachComponent<DynamicValueVariable<bool>>();
-		leftJumpComp.VariableName.Value = LeftJumpVariable;
-		leftJumpComp.Value.Value = true;
-		leftJumpComp.Value.OnValueChange += LeftJumpChangedEvent;
-
-		var rightJumpComp = userRoot.AttachComponent<DynamicValueVariable<bool>>();
-		rightJumpComp.VariableName.Value = RightJumpVariable;
-		rightJumpComp.Value.Value = true;
-		rightJumpComp.Value.OnValueChange += RightJumpChangedEvent;
+		InitVariable(userRoot, LeftJumpVariable, LeftJumpChangedEvent);
+		InitVariable(userRoot, RightJumpVariable, RightJumpChangedEvent);
 
 
 		UpdateForWorld(world);
