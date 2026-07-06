@@ -6,58 +6,10 @@ using HarmonyLib;
 
 namespace ResoniteInputControl;
 
-public struct MoveInputData
-{
-	public VR_LocomotionDirection controller;
-	public IInputNode<float2> leftAxis;
-	public IInputNode<float2> rightAxis;
-	public IInputNode<float> leftSpeed;
-	public IInputNode<float> rightSpeed;
-}
-
-public struct TurnInputData
-{
-	public VR_LocomotionTurn controller;
-	public IInputNode<float2> leftAxis;
-	public IInputNode<float2> rightAxis;
-}
-
-public struct Turn3AxisInputData
-{
-	public VR_LocomotionThreeAxisTurn controller;
-	public IInputNode<float2> leftAxis;
-	public IInputNode<float2> rightAxis;
-}
-
-public struct JumpInputData
-{
-	public AnyInput controller;
-	public List<IInputNode<bool>> inputs;
-}
-
-public struct StateData(bool leftMove = true, bool rightMove = true, bool leftTurn = true, bool rightTurn = true, bool leftJump = true, bool rightJump = true)
-{
-	public bool LeftMove = leftMove;
-	public bool RightMove = rightMove;
-
-	public bool LeftTurn = leftTurn;
-	public bool RightTurn = rightTurn;
-
-	public bool LeftJump = leftJump;
-	public bool RightJump = rightJump;
-}
-
 [HarmonyPatch]
 public static class Patches
 {
-	const string LeftMoveVariable = "User/Joystick.Left.Move";
-	const string RightMoveVariable = "User/Joystick.Right.Move";
-
-	const string LeftTurnVariable = "User/Joystick.Left.Turn";
-	const string RightTurnVariable = "User/Joystick.Right.Turn";
-
-	const string LeftJumpVariable = "User/Joystick.Left.Jump";
-	const string RightJumpVariable = "User/Joystick.Right.Jump";
+	const string VariableBase = "User/InputControl.{0}.{1}";
 
 	static World? currentWorld = null;
 
@@ -139,14 +91,14 @@ public static class Patches
 		if (world.IsUserspace()) return;
 		Slot userRoot = __instance.Slot;
 
-		InitVariable(userRoot, LeftMoveVariable, LeftMoveChangedEvent);
-		InitVariable(userRoot, RightMoveVariable, LeftMoveChangedEvent);
+		InitVariable(userRoot, string.Format(VariableBase, "Left", "Move"), LeftMoveChangedEvent);
+		InitVariable(userRoot, string.Format(VariableBase, "Right", "Move"), LeftMoveChangedEvent);
 
-		InitVariable(userRoot, LeftTurnVariable, LeftTurnChangedEvent);
-		InitVariable(userRoot, RightTurnVariable, RightTurnChangedEvent);
+		InitVariable(userRoot, string.Format(VariableBase, "Left", "Turn"), LeftTurnChangedEvent);
+		InitVariable(userRoot, string.Format(VariableBase, "Right", "Turn"), RightTurnChangedEvent);
 
-		InitVariable(userRoot, LeftJumpVariable, LeftJumpChangedEvent);
-		InitVariable(userRoot, RightJumpVariable, RightJumpChangedEvent);
+		InitVariable(userRoot, string.Format(VariableBase, "Left", "Jump"), LeftJumpChangedEvent);
+		InitVariable(userRoot, string.Format(VariableBase, "Right", "Jump"), RightJumpChangedEvent);
 
 
 		UpdateForWorld(world);
