@@ -1,20 +1,24 @@
 using Elements.Core;
 using HarmonyLib;
-using ResoniteModLoader;
+using BepInEx;
+using BepInEx.Logging;
+using BepInEx.NET.Common;
+using BepInExResoniteShim;
+using BepisResoniteWrapper;
 using System.Linq;
 using System.Reflection;
+using Renderite.Shared;
+using BepInEx.Configuration;
+
 
 namespace ResoniteInputControl;
 
-using Renderite.Shared;
-
-#if DEBUG
-using ResoniteHotReloadLib;
-#endif
-
-public class ResoniteInputControl : ResoniteMod
+[ResonitePlugin(PluginMetadata.GUID, PluginMetadata.NAME, PluginMetadata.VERSION, PluginMetadata.AUTHORS, PluginMetadata.REPOSITORY_URL)]
+[BepInDependency(BepInExResoniteShim.PluginMetadata.GUID)]
+public class ResoniteInputControl : BasePlugin
 {
-	private static Assembly ModAssembly => typeof(ResoniteInputControl).Assembly;
+	internal new static ManualLogSource Log = null!;
+	/*private static Assembly ModAssembly => typeof(ResoniteInputControl).Assembly;
 
 	public override string Name => ModAssembly.GetCustomAttribute<AssemblyTitleAttribute>()!.Title;
 	public override string Author => ModAssembly.GetCustomAttribute<AssemblyCompanyAttribute>()!.Company;
@@ -29,34 +33,27 @@ public class ResoniteInputControl : ResoniteMod
 
 	// Example Mod Config Key // Provides a "Mod Toggle" (assuming the functions implement it)
 	[AutoRegisterConfigKey]
-	public static ModConfigurationKey<bool> shouldBeActive = new("IsActive", "If the mod should generate the dynvars", () => true);
+	public static ModConfigurationKey<bool> shouldBeActive = new("IsActive", "If the mod should generate the dynvars", () => true);*/
+	internal static ConfigEntry<bool> shouldBeActive;
 
-	static ResoniteInputControl()
+	/*static ResoniteInputControl()
 	{
 		DebugFunc(() => $"Static Initializing {nameof(ResoniteInputControl)}...");
-	}
+	}*/
 
-	public override void OnEngineInit()
+	public override void Load()
 	{
-#if DEBUG
-		HotReloader.RegisterForHotReload(this);
-#endif
+		Log = base.Log;
+		shouldBeActive = Config.Bind("Resonite Input Control", "Mod Enabled", true, new ConfigDescription("Enables the mod."));
 
-		Config = GetConfiguration()!;
-
-		harmony.PatchAll(ModAssembly);
+        try
+        {
+            HarmonyInstance.PatchAll();
+            Log.LogInfo("Resonite Input Control has successfully loaded!");
+        } 
+        catch (System.Exception ex)
+        {
+            Log.LogError($"Resonite Input Control failed to patch: {ex}");
+        }
 	}
-
-
-#if DEBUG
-	static void BeforeHotReload()
-	{
-		harmony.UnpatchAll(HarmonyId);
-	}
-
-	static void OnHotReload(ResoniteMod modInstance)
-	{
-		harmony.PatchAll(ModAssembly);
-	}
-#endif
 }
