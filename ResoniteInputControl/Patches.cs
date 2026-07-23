@@ -1,8 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Elements.Core;
 using FrooxEngine;
 using FrooxEngine.ProtoFlux;
+using FrooxEngine.ProtoFlux.Runtimes.Execution.Nodes.FrooxEngine.Slots;
+using FrooxEngine.ProtoFlux.Runtimes.Execution.Nodes.Math.Constants;
 using HarmonyLib;
 using SkyFrost.Base;
 
@@ -94,46 +97,30 @@ public static class Patches
 			RightIndex = __result.Inputs.IndexOf(RightSource),
 		});
 	}
-
-	static void InitVariable(Slot root, string VariableName, SyncFieldEvent<bool> OnChange)
+	static void InitReadVariable(Slot root, string VariableName, Action<bool, World> OnChange)
 	{
-		
-		var component = root.AttachComponent<DynamicValueVariable<bool>>();
-		component.Persistent = false;
-		component.VariableName.Value = VariableName;
-		component.Value.Value = true;
-		component.Value.OnValueChange += OnChange;
-	}
-	static void InitReadVariable(Slot root, string VariableName, SyncFieldEvent<bool> OnChange)
-	{
-		DynamicValueVariable<bool> cached = null;
+		var manager = root.FindSpace("User").GetManager<bool>(VariableName, true);
+		bool last = true;
+		if (ResoniteInputControl.GenerateDynamicVarsOnUser.Value)
+		{
+			var component = root.AttachComponent<DynamicValueVariable<bool>>();
+			component.Persistent = false;
+			component.VariableName.Value = VariableName;
+			component.Value.Value = true;
+		}
 
-    	root.RunInUpdates(10, () =>
-    	{
-        	
-        	if (cached != null)
-        	{
-            	if (cached.IsDestroyed || !cached.Slot.IsChildOf(root))
-	            {
-    	            cached.Value.OnValueChange -= OnChange;
-        	        cached = null;
-					var tempField = new Sync<bool> { Value = true };
-					OnChange(tempField);
-					tempField.Dispose();	
-            	}
-
-	            return;
-    	    }
-
-	        cached = root.GetComponentInChildren<DynamicValueVariable<bool>>(
-    	        x => x.VariableName.Value == VariableName);
-
-        	if (cached != null)
-	        {
-    	        cached.Value.OnValueChange += OnChange;
-				OnChange(cached.Value);
-        	}
-    	});
+		root.StartTask(async () =>
+		{
+			while (!root.IsDestroyed)
+			{
+				await new Updates(3);
+				if (manager.Value != last)
+				{
+					OnChange(manager.Value, root.World);
+					last = manager.Value;
+				}
+			}
+		});
 	}
 
 	[HarmonyPostfix]
@@ -146,35 +133,18 @@ public static class Patches
 		if (world.IsUserspace()) return;
 		Slot userRoot = __instance.Slot;
 
-		if (ResoniteInputControl.GenerateDynamicVarsOnUser.Value) {
-			if (ResoniteInputControl.AddMovementVars.Value){
-				InitVariable(userRoot, string.Format(VariableBase, "Left", "Move"), LeftMoveChangedEvent);
-				InitVariable(userRoot, string.Format(VariableBase, "Right", "Move"), RightMoveChangedEvent);
-			}
-			if (ResoniteInputControl.AddRotationVars.Value){
-				InitVariable(userRoot, string.Format(VariableBase, "Left", "Turn"), LeftTurnChangedEvent);
-				InitVariable(userRoot, string.Format(VariableBase, "Right", "Turn"), RightTurnChangedEvent);
-			}
-			if (ResoniteInputControl.AddJumpVars.Value){
-				InitVariable(userRoot, string.Format(VariableBase, "Left", "Jump"), LeftJumpChangedEvent);
-				InitVariable(userRoot, string.Format(VariableBase, "Right", "Jump"), RightJumpChangedEvent);
-			}
-		} else
-		{
-			if (ResoniteInputControl.AddMovementVars.Value){
-				InitReadVariable(userRoot, string.Format(VariableBase, "Left", "Move"), LeftMoveChangedEvent);
-				InitReadVariable(userRoot, string.Format(VariableBase, "Right", "Move"), RightMoveChangedEvent);
-			}
-			if (ResoniteInputControl.AddRotationVars.Value){
-				InitReadVariable(userRoot, string.Format(VariableBase, "Left", "Turn"), LeftTurnChangedEvent);
-				InitReadVariable(userRoot, string.Format(VariableBase, "Right", "Turn"), RightTurnChangedEvent);
-			}
-			if (ResoniteInputControl.AddJumpVars.Value){
-				InitReadVariable(userRoot, string.Format(VariableBase, "Left", "Jump"), LeftJumpChangedEvent);
-				InitReadVariable(userRoot, string.Format(VariableBase, "Right", "Jump"), RightJumpChangedEvent);
-			}
+		if (ResoniteInputControl.AddMovementVars.Value){
+			InitReadVariable(userRoot, string.Format(VariableBase, "Left", "Move"), LeftMoveChangedEvent);
+			InitReadVariable(userRoot, string.Format(VariableBase, "Right", "Move"), RightMoveChangedEvent);
 		}
-
+		if (ResoniteInputControl.AddRotationVars.Value){
+			InitReadVariable(userRoot, string.Format(VariableBase, "Left", "Turn"), LeftTurnChangedEvent);
+			InitReadVariable(userRoot, string.Format(VariableBase, "Right", "Turn"), RightTurnChangedEvent);
+		}
+		if (ResoniteInputControl.AddJumpVars.Value){
+			InitReadVariable(userRoot, string.Format(VariableBase, "Left", "Jump"), LeftJumpChangedEvent);
+			InitReadVariable(userRoot, string.Format(VariableBase, "Right", "Jump"), RightJumpChangedEvent);
+		}
 
 		UpdateForWorld(world);
 	}
@@ -188,60 +158,54 @@ public static class Patches
 
 
 
-	public static void LeftMoveChangedEvent(SyncField<bool> field)
+	public static void LeftMoveChangedEvent(bool value, World world)
 	{
-		bool value = field.Value;
-		if (!currentStates.TryGetValue(field.World, out var state)) state = new();
+		if (!currentStates.TryGetValue(world, out var state)) state = new();
 		state.Left.Move = value;
-		if (currentStates.ContainsKey(field.World)) currentStates[field.World] = state;
-		else currentStates.Add(field.World, state);
+		if (currentStates.ContainsKey(world)) currentStates[world] = state;
+		else currentStates.Add(world, state);
 		RegisterControllerModifications();
 	}
-	public static void RightMoveChangedEvent(SyncField<bool> field)
+	public static void RightMoveChangedEvent(bool value, World world)
 	{
-		bool value = field.Value;
-		if (!currentStates.TryGetValue(field.World, out var state)) state = new();
+		if (!currentStates.TryGetValue(world, out var state)) state = new();
 		state.Right.Move = value;
-		if (currentStates.ContainsKey(field.World)) currentStates[field.World] = state;
-		else currentStates.Add(field.World, state);
+		if (currentStates.ContainsKey(world)) currentStates[world] = state;
+		else currentStates.Add(world, state);
 		RegisterControllerModifications();
 	}
 
-	public static void LeftTurnChangedEvent(SyncField<bool> field)
+	public static void LeftTurnChangedEvent(bool value, World world)
 	{
-		bool value = field.Value;
-		if (!currentStates.TryGetValue(field.World, out var state)) state = new();
+		if (!currentStates.TryGetValue(world, out var state)) state = new();
 		state.Left.Turn = value;
-		if (currentStates.ContainsKey(field.World)) currentStates[field.World] = state;
-		else currentStates.Add(field.World, state);
+		if (currentStates.ContainsKey(world)) currentStates[world] = state;
+		else currentStates.Add(world, state);
 		RegisterControllerModifications();
 	}
-	public static void RightTurnChangedEvent(SyncField<bool> field)
+	public static void RightTurnChangedEvent(bool value, World world)
 	{
-		bool value = field.Value;
-		if (!currentStates.TryGetValue(field.World, out var state)) state = new();
+		if (!currentStates.TryGetValue(world, out var state)) state = new();
 		state.Right.Turn = value;
-		if (currentStates.ContainsKey(field.World)) currentStates[field.World] = state;
-		else currentStates.Add(field.World, state);
+		if (currentStates.ContainsKey(world)) currentStates[world] = state;
+		else currentStates.Add(world, state);
 		RegisterControllerModifications();
 	}
 
-	public static void LeftJumpChangedEvent(SyncField<bool> field)
+	public static void LeftJumpChangedEvent(bool value, World world)
 	{
-		bool value = field.Value;
-		if (!currentStates.TryGetValue(field.World, out var state)) state = new();
+		if (!currentStates.TryGetValue(world, out var state)) state = new();
 		state.Left.Jump = value;
-		if (currentStates.ContainsKey(field.World)) currentStates[field.World] = state;
-		else currentStates.Add(field.World, state);
+		if (currentStates.ContainsKey(world)) currentStates[world] = state;
+		else currentStates.Add(world, state);
 		RegisterControllerModifications();
 	}
-	public static void RightJumpChangedEvent(SyncField<bool> field)
+	public static void RightJumpChangedEvent(bool value, World world)
 	{
-		bool value = field.Value;
-		if (!currentStates.TryGetValue(field.World, out var state)) state = new();
+		if (!currentStates.TryGetValue(world, out var state)) state = new();
 		state.Right.Jump = value;
-		if (currentStates.ContainsKey(field.World)) currentStates[field.World] = state;
-		else currentStates.Add(field.World, state);
+		if (currentStates.ContainsKey(world)) currentStates[world] = state;
+		else currentStates.Add(world, state);
 		RegisterControllerModifications();
 	}
 
