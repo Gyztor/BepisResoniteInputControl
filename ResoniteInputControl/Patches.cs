@@ -99,10 +99,10 @@ public static class Patches
 	}
 	static void InitReadVariable(Slot root, string VariableName, Action<bool, World> OnChange)
 	{
+		DynamicVariableHelper.ParsePath(VariableName, out string spaceName, out string varName);
 		var manager = root.GetComponent<DynamicVariableSpace>(x => x.SpaceName.Value == "User");
 		ResoniteInputControl.Log.LogWarning($"Space Manager on {VariableName} is {manager}");
 		bool last = true;
-		bool? temp = null;
 		if (ResoniteInputControl.GenerateDynamicVarsOnUser.Value)
 		{
 			var component = root.AttachComponent<DynamicValueVariable<bool>>();
@@ -116,11 +116,11 @@ public static class Patches
 			while (!root.IsDestroyed)
 			{
 				await new Updates(3);
-				temp = manager.GetManager<bool>(VariableName, false)?.Value;
-				if (temp != last)
+				if (!manager.TryReadValue<bool>(varName, out bool val)) val = true;
+				if (val != last)
 				{
-					OnChange(temp ?? true, root.World);
-					last = temp ?? true;
+					OnChange(val, root.World);
+					last = val;
 				}
 			}
 		});
