@@ -110,13 +110,16 @@ public static class Patches
 
     	root.RunInUpdates(10, () =>
     	{
-        	// Lost the component? Forget it and start searching again.
+        	
         	if (cached != null)
         	{
-            	if (cached.IsDestroyed) // or whatever the proper validity check is
+            	if (cached.IsDestroyed || !cached.Slot.IsChildOf(root))
 	            {
     	            cached.Value.OnValueChange -= OnChange;
         	        cached = null;
+					var tempField = new Sync<bool> { Value = true };
+					OnChange(tempField);
+					tempField.Dispose();	
             	}
 
 	            return;
@@ -128,6 +131,7 @@ public static class Patches
         	if (cached != null)
 	        {
     	        cached.Value.OnValueChange += OnChange;
+				OnChange(cached.Value);
         	}
     	});
 	}
