@@ -69,15 +69,15 @@ public static class Patches
 	[HarmonyPostfix]
 	public static void FindControllerJumpInputPatch(AnyInput __result)
 	{
-		var LeftSource = (ControllerDigitalSource)__result.Inputs.FirstOrDefault(r =>
+		var LeftSource = __result.Inputs.FirstOrDefault(r =>
 		{
 			if (typeof(ControllerDigitalSource).IsAssignableFrom(r.GetType())) return false;
 			ControllerDigitalSource source = (ControllerDigitalSource)r;
 			if (source.Side != Renderite.Shared.Chirality.Left) return false;
 			if (source.PropertyName != "Jump") return false;
 			return true;
-		}, __result.Inputs.Count >= 2 ? __result.Inputs[0] : nullJump);
-		var RightSource = (ControllerDigitalSource)__result.Inputs.FirstOrDefault(r =>
+		}, __result.Inputs.Count >= 1 ? __result.Inputs[0] : nullJump);
+		var RightSource = __result.Inputs.FirstOrDefault(r =>
 		{
 			if (typeof(ControllerDigitalSource).IsAssignableFrom(r.GetType())) return false;
 			ControllerDigitalSource source = (ControllerDigitalSource)r;
@@ -247,42 +247,45 @@ public static class Patches
 		if (!currentWorld.LocalUser.VR_Active) return;
 
 		if (!currentStates.TryGetValue(currentWorld, out var vals)) vals = new();
+		if (ResoniteInputControl.AddMovementVars.Value){
+			storedMoveData.ForEach(v =>
+			{
+				var controller = v.controller;
 
-		storedMoveData.ForEach(v =>
-		{
-			var controller = v.controller;
+				controller.LeftAxis = vals.Left.Move ? v.leftAxis : nullAxis;
+				controller.LeftSpeed = vals.Left.Move ? v.leftSpeed : nullSpeed;
+				controller.RightAxis = vals.Right.Move ? v.rightAxis : nullAxis;
+				controller.RightSpeed = vals.Right.Move ? v.rightSpeed : nullSpeed;
+			});
+		}
+		if (ResoniteInputControl.AddRotationVars.Value){
+			storedTurnData.ForEach(v =>
+			{
+				var controller = v.controller;
 
-			controller.LeftAxis = vals.Left.Move ? v.leftAxis : nullAxis;
-			controller.LeftSpeed = vals.Left.Move ? v.leftSpeed : nullSpeed;
-			controller.RightAxis = vals.Right.Move ? v.rightAxis : nullAxis;
-			controller.RightSpeed = vals.Right.Move ? v.rightSpeed : nullSpeed;
-		});
+				controller.LeftAxis = vals.Left.Turn ? v.leftAxis : nullAxis;
+				controller.RightAxis = vals.Right.Turn ? v.rightAxis : nullAxis;
+			});
 
-		storedTurnData.ForEach(v =>
-		{
-			var controller = v.controller;
+			storedTurn3AxisData.ForEach(v =>
+			{
+				var controller = v.controller;
 
-			controller.LeftAxis = vals.Left.Turn ? v.leftAxis : nullAxis;
-			controller.RightAxis = vals.Right.Turn ? v.rightAxis : nullAxis;
-		});
+				controller.LeftAxis = vals.Left.Turn ? v.leftAxis : nullAxis;
+				controller.RightAxis = vals.Right.Turn ? v.rightAxis : nullAxis;
+			});
+		}
 
-		storedTurn3AxisData.ForEach(v =>
-		{
-			var controller = v.controller;
-
-			controller.LeftAxis = vals.Left.Turn ? v.leftAxis : nullAxis;
-			controller.RightAxis = vals.Right.Turn ? v.rightAxis : nullAxis;
-		});
-
-
-		storedJumpData.ForEach(v =>
-		{
-			var controller = v.controller;
+		if (ResoniteInputControl.AddJumpVars.Value){
+			storedJumpData.ForEach(v =>
+			{
+				var controller = v.controller;
 
 
-			controller.Inputs[v.LeftIndex] = vals.Left.Jump ? v.LeftButton : nullJump;
-			controller.Inputs[v.RightIndex] = vals.Right.Jump ? v.RightButton : nullJump;
-		});
+				controller.Inputs[v.LeftIndex] = vals.Left.Jump ? v.LeftButton : nullJump;
+				controller.Inputs[v.RightIndex] = vals.Right.Jump ? v.RightButton : nullJump;
+			});
+		}
 	}
 
 	public static void UpdateForWorld(World world)
