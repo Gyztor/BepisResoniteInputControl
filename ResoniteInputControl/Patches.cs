@@ -2,7 +2,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Elements.Core;
 using FrooxEngine;
+using FrooxEngine.ProtoFlux;
 using HarmonyLib;
+using SkyFrost.Base;
 
 namespace ResoniteInputControl;
 
@@ -23,6 +25,7 @@ public static class Patches
 	public static List<TurnInputData> storedTurnData = [];
 	public static List<Turn3AxisInputData> storedTurn3AxisData = [];
 	public static List<JumpInputData> storedJumpData = [];
+	
 
 	[HarmonyPatch(typeof(DualControllerBindingGenerator), "BindLocomotionDirection")]
 	[HarmonyPostfix]
@@ -94,10 +97,39 @@ public static class Patches
 
 	static void InitVariable(Slot root, string VariableName, SyncFieldEvent<bool> OnChange)
 	{
+		
 		var component = root.AttachComponent<DynamicValueVariable<bool>>();
+		component.Persistent = false;
 		component.VariableName.Value = VariableName;
 		component.Value.Value = true;
 		component.Value.OnValueChange += OnChange;
+	}
+	static void InitReadVariable(Slot root, string VariableName, SyncFieldEvent<bool> OnChange)
+	{
+		DynamicValueVariable<bool> cached = null;
+
+    	root.RunInUpdates(10, () =>
+    	{
+        	// Lost the component? Forget it and start searching again.
+        	if (cached != null)
+        	{
+            	if (cached.IsDestroyed) // or whatever the proper validity check is
+	            {
+    	            cached.Value.OnValueChange -= OnChange;
+        	        cached = null;
+            	}
+
+	            return;
+    	    }
+
+	        cached = root.GetComponentInChildren<DynamicValueVariable<bool>>(
+    	        x => x.VariableName.Value == VariableName);
+
+        	if (cached != null)
+	        {
+    	        cached.Value.OnValueChange += OnChange;
+        	}
+    	});
 	}
 
 	[HarmonyPostfix]
@@ -110,14 +142,34 @@ public static class Patches
 		if (world.IsUserspace()) return;
 		Slot userRoot = __instance.Slot;
 
-		InitVariable(userRoot, string.Format(VariableBase, "Left", "Move"), LeftMoveChangedEvent);
-		InitVariable(userRoot, string.Format(VariableBase, "Right", "Move"), RightMoveChangedEvent);
-
-		InitVariable(userRoot, string.Format(VariableBase, "Left", "Turn"), LeftTurnChangedEvent);
-		InitVariable(userRoot, string.Format(VariableBase, "Right", "Turn"), RightTurnChangedEvent);
-
-		InitVariable(userRoot, string.Format(VariableBase, "Left", "Jump"), LeftJumpChangedEvent);
-		InitVariable(userRoot, string.Format(VariableBase, "Right", "Jump"), RightJumpChangedEvent);
+		if (ResoniteInputControl.GenerateDynamicVarsOnUser.Value) {
+			if (ResoniteInputControl.AddMovementVars.Value){
+				InitVariable(userRoot, string.Format(VariableBase, "Left", "Move"), LeftMoveChangedEvent);
+				InitVariable(userRoot, string.Format(VariableBase, "Right", "Move"), RightMoveChangedEvent);
+			}
+			if (ResoniteInputControl.AddRotationVars.Value){
+				InitVariable(userRoot, string.Format(VariableBase, "Left", "Turn"), LeftTurnChangedEvent);
+				InitVariable(userRoot, string.Format(VariableBase, "Right", "Turn"), RightTurnChangedEvent);
+			}
+			if (ResoniteInputControl.AddJumpVars.Value){
+				InitVariable(userRoot, string.Format(VariableBase, "Left", "Jump"), LeftJumpChangedEvent);
+				InitVariable(userRoot, string.Format(VariableBase, "Right", "Jump"), RightJumpChangedEvent);
+			}
+		} else
+		{
+			if (ResoniteInputControl.AddMovementVars.Value){
+				InitReadVariable(userRoot, string.Format(VariableBase, "Left", "Move"), LeftMoveChangedEvent);
+				InitReadVariable(userRoot, string.Format(VariableBase, "Right", "Move"), RightMoveChangedEvent);
+			}
+			if (ResoniteInputControl.AddRotationVars.Value){
+				InitReadVariable(userRoot, string.Format(VariableBase, "Left", "Turn"), LeftTurnChangedEvent);
+				InitReadVariable(userRoot, string.Format(VariableBase, "Right", "Turn"), RightTurnChangedEvent);
+			}
+			if (ResoniteInputControl.AddJumpVars.Value){
+				InitReadVariable(userRoot, string.Format(VariableBase, "Left", "Jump"), LeftJumpChangedEvent);
+				InitReadVariable(userRoot, string.Format(VariableBase, "Right", "Jump"), RightJumpChangedEvent);
+			}
+		}
 
 
 		UpdateForWorld(world);
