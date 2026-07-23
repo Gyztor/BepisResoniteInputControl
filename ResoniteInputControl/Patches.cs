@@ -76,7 +76,7 @@ public static class Patches
 			if (source.Side != Renderite.Shared.Chirality.Left) return false;
 			if (source.PropertyName != "Jump") return false;
 			return true;
-		}, __result.Inputs[0]);
+		}, __result.Inputs.Count >= 2 ? __result.Inputs[0] : nullJump);
 		var RightSource = (ControllerDigitalSource)__result.Inputs.FirstOrDefault(r =>
 		{
 			if (typeof(ControllerDigitalSource).IsAssignableFrom(r.GetType())) return false;
@@ -84,7 +84,7 @@ public static class Patches
 			if (source.Side != Renderite.Shared.Chirality.Right) return false;
 			if (source.PropertyName != "Jump") return false;
 			return true;
-		}, __result.Inputs[1]);
+		}, __result.Inputs.Count >= 2 ? __result.Inputs[1] : nullJump);
 		storedJumpData.Add(new()
 		{
 			controller = __result,
