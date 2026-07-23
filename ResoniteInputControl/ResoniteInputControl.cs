@@ -52,7 +52,7 @@ public class ResoniteInputControl : BasePlugin
 		GenerateDynamicVarsOnUser = Config.Bind("General", "Generate Variables", true, new ConfigDescription("Generates the needed Dyanmic Variables on User Root. If this is off it will instead attempt to find the component with the correct space name and subscribe to that."));
 		AddMovementVars = Config.Bind("Variable Toggles", "Position Variables", true, new ConfigDescription("Enables if it actually cares about checking for the variable for movement."));
 		AddRotationVars = Config.Bind("Variable Toggles", "Rotation Variables", true, new ConfigDescription("Enables if it actually cares about checking for the variable for rotation."));
-		AddJumpVars = Config.Bind("Variable Toggles", "Rotation Variables", true, new ConfigDescription("Enables if it actually cares about checking for the variable for jumping."));
+		AddJumpVars = Config.Bind("Variable Toggles", "Jump Variables", true, new ConfigDescription("Enables if it actually cares about checking for the variable for jumping."));
 
         try
         {
